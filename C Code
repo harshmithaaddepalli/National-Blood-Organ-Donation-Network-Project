@@ -1,0 +1,270 @@
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+#define MAX 10
+#define PI 3.14159265358979323846
+#define EARTH_RADIUS 6371 // in kilometers
+
+
+struct Donor {
+    char name[20];
+    char blood[5];
+    char organ[10];
+    int age;
+    char health[10];
+    int available;
+    char location[20];
+};
+
+struct Patient {
+    char blood[5];
+    char need[10];
+    int age;
+    char location[20];
+};
+
+struct Match {
+    char name[20];
+    float score;
+    float distance;
+    float finalScore;
+};
+
+int compatible(char donor[], char patient[]) {
+    if (strcmp(donor, "O-") == 0) return 1;
+
+    if (strcmp(donor, "O+") == 0 &&
+        (strcmp(patient, "O+") == 0 || strcmp(patient, "A+") == 0 ||
+         strcmp(patient, "B+") == 0 || strcmp(patient, "AB+") == 0))
+        return 1;
+
+    if (strcmp(donor, "A-") == 0 &&
+        (patient[0] == 'A' || (patient[0] == 'A' && patient[1] == 'B')))
+        return 1;
+
+    if (strcmp(donor, "A+") == 0 &&
+        (strcmp(patient, "A+") == 0 ||
+         strcmp(patient, "AB+") == 0))
+        return 1;
+
+    if (strcmp(donor, "B-") == 0 &&
+        (patient[0] == 'B' || (patient[0] == 'A' && patient[1] == 'B')))
+        return 1;
+
+    if (strcmp(donor, "B+") == 0 &&
+        (strcmp(patient, "B+") == 0 ||
+         strcmp(patient, "AB+") == 0))
+        return 1;
+
+    if (strcmp(donor, "AB-") == 0 &&
+        (strcmp(patient, "AB-") == 0 ||
+         strcmp(patient, "AB+") == 0))
+        return 1;
+
+    if (strcmp(donor, "AB+") == 0 &&
+        strcmp(patient, "AB+") == 0)
+        return 1;
+
+    return 0;
+}
+
+
+float getLatitude(char city[]) {
+    if (strcmp(city, "Delhi") == 0) return 28.6139;
+    if (strcmp(city, "Mumbai") == 0) return 19.0760;
+    if (strcmp(city, "Bangalore") == 0) return 12.9716;
+    if (strcmp(city, "Chennai") == 0) return 13.0827;
+    if (strcmp(city, "Hyderabad") == 0) return 17.3850;
+    if (strcmp(city, "Kolkata") == 0) return 22.5726;
+
+    return 0;
+}
+
+float getLongitude(char city[]) {
+    if (strcmp(city, "Delhi") == 0) return 77.2090;
+    if (strcmp(city, "Mumbai") == 0) return 72.8777;
+    if (strcmp(city, "Bangalore") == 0) return 77.5946;
+    if (strcmp(city, "Chennai") == 0) return 80.2707;
+    if (strcmp(city, "Hyderabad") == 0) return 78.4867;
+    if (strcmp(city, "Kolkata") == 0) return 88.3639;
+
+    return 0;
+}
+
+
+float toRadians(float degree) {
+    return degree * (PI / 180.0);
+}
+
+float distance(char city1[], char city2[]) {
+    float lat1 = getLatitude(city1);
+    float lon1 = getLongitude(city1);
+    float lat2 = getLatitude(city2);
+    float lon2 = getLongitude(city2);
+
+    float dLat = toRadians(lat2 - lat1);
+    float dLon = toRadians(lon2 - lon1);
+
+    float a = sin(dLat / 2) * sin(dLat / 2) +
+              cos(toRadians(lat1)) * cos(toRadians(lat2)) *
+              sin(dLon / 2) * sin(dLon / 2);
+
+    float c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return EARTH_RADIUS * c;
+}
+
+
+float score(struct Donor d, struct Patient p) {
+    if (!compatible(d.blood, p.blood)) return 0;
+
+    float s = 40; // blood type
+
+    if (strcmp(d.organ, p.need) == 0)
+        s += 30;
+
+    int diff = abs(d.age - p.age);
+
+    s += (diff <= 10) ? 15 :
+         (diff <= 20) ? 10 :
+         (diff <= 30) ? 5 : 0;
+
+    s += (strcmp(d.health, "Excellent") == 0) ? 10 :
+         (strcmp(d.health, "Good") == 0) ? 7 : 4;
+
+    if (d.available)
+        s += 5;
+
+    return s;
+}
+
+
+
+void swap(struct Match* a, struct Match* b) {
+    struct Match temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int partition(struct Match arr[], int low, int high) {
+    float pivot = arr[high].finalScore;
+    int i = low - 1;
+
+    for (int j = low; j < high; j++) {
+        if (arr[j].finalScore > pivot) {
+            i++;
+            swap(&arr[i], &arr[j]);
+        }
+    }
+
+    swap(&arr[i + 1], &arr[high]);
+
+    return i + 1;
+}
+
+void quickSort(struct Match arr[], int low, int high) {
+    if (low < high) {
+        int pi = partition(arr, low, high);
+
+        quickSort(arr, low, pi - 1);
+        quickSort(arr, pi + 1, high);
+    }
+}
+
+
+int main() {
+    struct Donor donors[MAX];
+    struct Patient patient;
+    struct Match matches[MAX];
+
+    int donorCount, count = 0;
+
+    printf("Enter number of donors (max %d): ", MAX);
+    scanf("%d", &donorCount);
+
+
+    for (int i = 0; i < donorCount; i++) {
+        printf("\nEnter details for Donor %d:\n", i + 1);
+
+        printf("Name: ");
+        scanf("%s", donors[i].name);
+
+        printf("Blood Group (e.g., A+, O-): ");
+        scanf("%s", donors[i].blood);
+
+        printf("Organ Type (e.g., Kidney, Liver): ");
+        scanf("%s", donors[i].organ);
+
+        printf("Age: ");
+        scanf("%d", &donors[i].age);
+
+        printf("Health Status (Excellent/Good/Fair): ");
+        scanf("%s", donors[i].health);
+
+        printf("Available (1 for Yes, 0 for No): ");
+        scanf("%d", &donors[i].available);
+
+        printf("City (Delhi/Mumbai/Bangalore/Chennai/Hyderabad/Kolkata): ");
+        scanf("%s", donors[i].location);
+    }
+
+
+    printf("\nEnter Patient Details:\n");
+
+    printf("Blood Group: ");
+    scanf("%s", patient.blood);
+
+    printf("Needed Organ: ");
+    scanf("%s", patient.need);
+
+    printf("Age: ");
+    scanf("%d", &patient.age);
+
+    printf("City (Delhi/Mumbai/Bangalore/Chennai/Hyderabad/Kolkata): ");
+    scanf("%s", patient.location);
+
+ 
+
+    for (int i = 0; i < donorCount; i++) {
+        float s = score(donors[i], patient);
+
+        if (s > 0) {
+            matches[count].score = s;
+
+            matches[count].distance =
+                distance(donors[i].location, patient.location);
+
+            matches[count].finalScore =
+                s - (matches[count].distance / 100); // softer penalty
+
+            strcpy(matches[count].name, donors[i].name);
+
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        printf("\nNo compatible donors found.\n");
+        return 0;
+    }
+
+   
+
+    quickSort(matches, 0, count - 1);
+
+    
+
+    printf("\n=== Best Matches ===\n");
+
+    for (int i = 0; i < count; i++) {
+        printf("%d. %s | Score: %.1f | Distance: %.1f km | Final: %.1f\n",
+               i + 1,
+               matches[i].name,
+               matches[i].score,
+               matches[i].distance,
+               matches[i].finalScore);
+    }
+
+    return 0;
+}
